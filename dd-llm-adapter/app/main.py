@@ -1,20 +1,6 @@
-from fastapi import FastAPI
-from pydantic import BaseModel
-from typing import Dict, Any
+from fastapi import FastAPI, Request
 
 app = FastAPI(title="dd-llm-adapter")
-
-# -------- request / response schemas --------
-
-
-class InvokeRequest(BaseModel):
-    prompt: Dict[str, Any]
-
-
-class InvokeResponse(BaseModel):
-    rawResponse: Dict[str, Any]
-
-# -------- endpoints --------
 
 
 @app.get("/health")
@@ -22,9 +8,14 @@ def health():
     return {"status": "ok"}
 
 
-@app.post("/invoke", response_model=InvokeResponse)
-def invoke(req: InvokeRequest):
-    # v0: deterministic mock that matches your Java-side contract shape
+@app.post("/invoke")
+async def invoke(request: Request):
+    body_bytes = await request.body()
+    body_str = body_bytes.decode("utf-8")
+
+    # optional: print for sanity
+    print("RAW BODY:", body_str)
+
     return {
         "rawResponse": {
             "result": {
@@ -33,7 +24,9 @@ def invoke(req: InvokeRequest):
                 "message": "mock",
                 "stage": "llm_response_validation",
                 "anchorId": "mock",
-                "metadata": {}
+                "metadata": {
+                    "echo": body_str
+                }
             }
         }
     }
