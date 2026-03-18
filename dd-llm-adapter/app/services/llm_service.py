@@ -1,62 +1,43 @@
-# prototyping llm integration and studying response drift
+#
 
 import json
 import urllib.request
+from app.models.llm_request import LLMRequest
+from app.models.llm_response import LLMResponse
 
 
-def generate_with_ollama(prompt, model="llama3"):
-    url = "http://localhost:11434/api/generate"
+class LLMService:
+    def __init__(self):
+        pass
 
-    payload = {
-        "model": model,
-        "stream": False,
-        "prompt": prompt
-    }
+    def invoke_llm_provider(self, *, llm_request):
+        if (llm_request is None):
+            raise ValueError("llm_request cannot be null")
 
-    data = json.dumps(payload).encode("utf-8")
+        # TODO: pull from config service components
+        url = "http://localhost:11434/api/generate"
 
-    request = urllib.request.Request(
-        url=url,
-        data=data,
-        headers={"Content-Type": "application/json"},
-        method="POST"
-    )
+        payload = llm_request.llm_query
+        data = json.dumps(payload).encode("utf-8")
 
-    with urllib.request.urlopen(request) as response:
-        body = response.read().decode("utf-8")
+        request = urllib.request.Request(
+            url=url,
+            data=data,
+            headers={"Content-Type": "application/json"},
+            method="POST"
+        )
 
-    return body
+        with urllib.request.urlopen(request) as response:
+            status = response.status
+            body = response.read().decode("utf-8")
 
+            raw_response = json.loads(body)
 
-def generate_with_ollama_json(prompt, model="llama3"):
-    url = "http://localhost:11434/api/generate"
+            success = False
+            if status >= 200 and status < 300:
+                success = True
 
-    payload = {
-        "model": model,
-        "stream": False,
-        "prompt": prompt
-    }
+        llm_response = LLMResponse(
+            llm_request=llm_request, raw_response=raw_response, success=success)
 
-    data = json.dumps(payload).encode("utf-8")
-
-    request = urllib.request.Request(
-        url=url,
-        data=data,
-        headers={"Content-Type": "application/json"},
-        method="POST"
-    )
-
-    with urllib.request.urlopen(request) as response:
-        body = response.read().decode("utf-8")
-
-    return json.loads(body)
-
-
-# ------driver---------------------
-response = generate_with_ollama("Why is the sky blue?")
-print(response)
-
-print("*" * 15)
-
-response = generate_with_ollama_json("Why is the sky blue?")
-print(response["response"])
+        return llm_response
